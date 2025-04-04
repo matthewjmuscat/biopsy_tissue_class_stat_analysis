@@ -88,3 +88,31 @@ def load_multiindex_csv(file_path, index_col=None, header_rows=None):
         return df
     except Exception as e:
         raise Exception(f"Error loading file {file_path}: {e}")
+    
+
+
+
+
+
+
+def load_parquet_as_dataframe(file_path):
+    """
+    Loads a Parquet file into a pandas DataFrame.
+
+    Parameters:
+        file_path (str or Path): Path to the Parquet file.
+
+    Returns:
+        pd.DataFrame: The loaded DataFrame.
+    """
+    file_path = Path(file_path)  # Ensure the file path is a Path object
+    if not file_path.is_file():
+        raise ValueError(f"The file '{file_path}' does not exist.")
+    
+    try:
+        df = pd.read_parquet(file_path)
+        print(f"Loaded file: {file_path}")
+        return df
+    except Exception as e:
+        print(f"Error loading file {file_path}: {e}")
+        return None

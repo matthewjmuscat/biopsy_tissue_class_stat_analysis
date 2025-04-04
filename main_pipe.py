@@ -6,12 +6,22 @@ import statistical_tests_1_quick_and_dirty
 import shape_and_radiomic_features
 import misc_funcs
 import biopsy_information
+import uncertainties_analysis
+
+
 
 def main():
     
     # Main output (files, input) directory
-    main_output_path = Path("/home/matthew-muscat/Documents/UBC/Research/Data/Output data/MC_sim_out- Date-Apr-01-2025 Time-15,04,17")  # Ensure the directory is a Path object
+    # This one is 10k 10k containment and dosim, 11 patients, 2 fractions each,  pt 181 MR as well (ran with errors in final figures)
+    #main_output_path = Path("/home/matthew-muscat/Documents/UBC/Research/Data/Output data/MC_sim_out- Date-Apr-01-2025 Time-15,04,17")  # Ensure the directory is a Path object
+    # This one is 10k containment and 10 (very low) dosim for speed, 11 patients, 2 fractions each,  pt 181 MR as well (ran with no errors in final figures)
+    #main_output_path = Path("/home/matthew-muscat/Documents/UBC/Research/Data/Output data/MC_sim_out- Date-Apr-02-2025 Time-03,44,41")
+    # This one is 10k containment and 10 (very low) dosim for speed, all vitesse patients! 
+    main_output_path = Path("/home/matthew-muscat/Documents/UBC/Research/Data/Output data/MC_sim_out- Date-Apr-02-2025 Time-19,38,15")
+
     
+
 
 
     ### Load Dataframes 
@@ -19,6 +29,11 @@ def main():
     # Set csv directory
     csv_directory = main_output_path.joinpath("Output CSVs")
     cohort_csvs_directory = csv_directory.joinpath("Cohort")
+
+
+
+
+
 
     # Cohort 3d radiomic features all oar and dil structures
     cohort_3d_radiomic_features_all_oar_dil_path = cohort_csvs_directory.joinpath("Cohort: 3D radiomic features all OAR and DIL structures.csv")  # Ensure the directory is a Path object
@@ -73,6 +88,71 @@ def main():
     # this is a multiindex dataframe
     cohort_tissue_class_distances_global_df = load_files.load_multiindex_csv(cohort_tissue_class_distances_global_path, header_rows=[0, 1])  # Load the CSV file into a DataFrame
 
+
+
+
+    # Load uncertainties csv
+    #uncertainties_path = main_output_path.joinpath("uncertainties_file_auto_generated Date-Apr-02-2025 Time-03,45,24.csv")  # Ensure the directory is a Path object
+
+    # Assuming main_output_path is already a Path object
+    # Adjust the pattern as needed if the prefix should be "uncertainities"
+    csv_files = list(main_output_path.glob("uncertainties*.csv"))
+    if csv_files:
+        # grab the first one 
+        uncertainties_path = csv_files[0]
+        uncertainties_df = load_files.load_csv_as_dataframe(uncertainties_path)
+    else:
+        raise FileNotFoundError("No uncertainties CSV file found in the directory.")
+
+    
+
+
+
+
+    # load all containment and distances results csvs
+    mc_sim_results_path = csv_directory.joinpath("MC simulation")  # Ensure the directory is a Path object
+    all_paths_containment_and_distances = load_files.find_csv_files(mc_sim_results_path, ['containment and distances (light) results.parquet'])
+    # Load and concatenate all containment and distances results csvs
+    # Loop through all the paths and load the csv files
+    all_containment_and_distances_dfs_list = []
+    for path in all_paths_containment_and_distances:
+        # Load the csv file into a dataframe
+        df = load_files.load_parquet_as_dataframe(path)
+        # Append the dataframe to the list
+        all_containment_and_distances_dfs_list.append(df)
+    # Concatenate all the dataframes into one dataframe
+    all_containment_and_distances_df = pd.concat(all_containment_and_distances_dfs_list, ignore_index=True)
+    del all_containment_and_distances_dfs_list
+    # Print the shape of the dataframe
+    print(f"Shape of all containment and distances dataframe: {all_containment_and_distances_df.shape}")
+    # Print the columns of the dataframe
+    print(f"Columns of all containment and distances dataframe: {all_containment_and_distances_df.columns}")
+    # Print the first 5 rows of the dataframe
+    print(f"First 5 rows of all containment and distances dataframe: {all_containment_and_distances_df.head()}")
+    # Print the last 5 rows of the dataframe
+    print(f"Last 5 rows of all containment and distances dataframe: {all_containment_and_distances_df.tail()}")
+
+
+
+
+
+
+
+
+
+
+
+
+    ########### LOADING COMPLETE
+
+
+
+
+
+
+
+
+
     ## Create output directory
     # Output directory 
     output_dir = Path(__file__).parents[0].joinpath("output_data")
@@ -118,6 +198,35 @@ def main():
 
 
 
+
+
+
+
+
+    ### Uncertainties analysis (START)
+    # Create output directory for uncertainties analysis
+    uncertainties_analysis_dir = output_dir.joinpath("uncertainties_analysis")
+    os.makedirs(uncertainties_analysis_dir, exist_ok=True)
+    # Output filename
+    output_filename = 'uncertainties_analysis_statistics_all_patients.csv'
+    # Get uncertainties analysis statistics
+    uncertainties_analysis_statistics_df = uncertainties_analysis.compute_statistics_by_structure_type(uncertainties_df,
+                                                                                           columns=['mu (X)', 'mu (Y)', 'mu (Z)', 'sigma (X)', 'sigma (Y)', 'sigma (Z)', 'Dilations mu (XY)', 'Dilations mu (Z)', 'Dilations sigma (XY)', 'Dilations sigma (Z)', 'Rotations mu (X)', 'Rotations mu (Y)', 'Rotations mu (Z)', 'Rotations sigma (X)', 'Rotations sigma (Y)', 'Rotations sigma (Z)'], 
+                                                                                           patient_uids=unique_patient_ids_all)
+    # Save the statistics to a CSV file
+    uncertainties_analysis_statistics_df.to_csv(uncertainties_analysis_dir.joinpath(output_filename), index=True)
+    # Print the statistics
+    print(uncertainties_analysis_statistics_df)
+    ### Uncertainties analysis (END)
+
+
+
+
+
+
+
+
+
     ### Radiomic features analysis (START)
     # Create output directory for radiomic features
     radiomic_features_dir = output_dir.joinpath("radiomic_features")
@@ -136,6 +245,19 @@ def main():
     ### Radiomic features analysis (END)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     ### Find DIL double sextant percentages (START)
     # Create output directory for DIL information
     dil_information_dir = output_dir.joinpath("dil_information")
@@ -149,6 +271,19 @@ def main():
     # Print the statistics
     print(dil_double_sextant_percentages_df)
     ### Find DIL double sextant percentages (END)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     ### Find structure counts (START)
@@ -170,6 +305,16 @@ def main():
     # Print the statistics
     print(structure_counts_statistics_df)
     ### Find structure counts (END)
+
+
+
+
+
+
+
+
+
+
 
 
     ### Biopsy information analysis (START)
@@ -200,6 +345,19 @@ def main():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     ### Find biopsy double sextant percentages (START)
     # Create output directory for biopsy information
     biopsy_information_dir = output_dir.joinpath("biopsy_information")
@@ -215,6 +373,18 @@ def main():
     # Print the statistics
     print(biopsy_double_sextant_percentages_df)
     ### Find biopsy double sextant percentages (END)
+
+
+
+
+
+
+
+    ### Find distances statistics (START)
+
+
+
+
 
 
 
